@@ -1,6 +1,6 @@
 {
-  "name": "wsdl-tsclient",
-  "version": "1.1.4",
+  "name": "@pricenow/wsdl-tsclient",
+  "version": "1.0.0",
   "description": "Generate typescript soap client with typescript definitons from WSDL file.",
   "main": "dist/src/index.js",
   "bin": {
@@ -23,7 +23,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dderevjanik/wsdl-tsclient.git"
+    "url": "git+https://github.com/pricenow-ch/wsdl-tsclient.git"
   },
   "keywords": [
     "soap",
@@ -32,12 +32,12 @@
     "wsdl-client",
     "typescript"
   ],
-  "author": "Daniel Derevjanik <daniel.derevjanik@gmail.com>",
+  "author": "Daniel Derevjanik <daniel.derevjanik@gmail.com>, Felix Wohnhaas <felix@pricenow.ch>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/dderevjanik/wsdl-tsclient/issues"
+    "url": "https://github.com/pricenow-ch/wsdl-tsclient/issues"
   },
-  "homepage": "https://github.com/dderevjanik/wsdl-tsclient#readme",
+  "homepage": "https://github.com/pricenow-ch/wsdl-tsclient#readme",
   "devDependencies": {
     "prettier": "^2.2.1",
     "tap-spec": "^5.0.0",
