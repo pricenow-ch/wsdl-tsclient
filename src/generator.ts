@@ -43,7 +43,7 @@ function createProperty(
         name: camelCase(name, {pascalCase: true}),
         docs: [doc],
         hasQuestionToken: true,
-        type: isArray ? `Array<${type}>` : type,
+        type: isArray ? `Array<${type}> | ${type}` : type,
     };
 }
 
