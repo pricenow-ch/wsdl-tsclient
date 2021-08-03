@@ -46,15 +46,20 @@ you can also use `npx`
 wsdl-tsclient [options] [path]
 
 Options:
-      --help                 Show help                                 [boolean]
+      --help                        Show help                          [boolean]
   -v, --version                                                        [boolean]
-  -o                         Output directory                [string] [required]
-      --emitDefinitionsOnly  Generate only Definitions                 [boolean]
-      --modelNamePreffix     Prefix for generated interface names       [string]
-      --modelNameSuffix      Suffix for generated interface names       [string]
-      --quiet                Suppress logs                             [boolean]
-      --verbose              Print verbose logs                        [boolean]
-      --no-color             Logs without colors                       [boolean]
+  -o                                Output directory         [string] [required]
+      --emitDefinitionsOnly         Generate only Definitions          [boolean]
+      --modelNamePreffix            Prefix for generated interface names[string]
+      --modelNameSuffix             Suffix for generated interface names[string]
+      --caseInsensitiveNames        Case-insensitive name while parsing
+                                    definition names                   [boolean]
+      --maxRecursiveDefinitionName  Maximum count of definition's with same name
+                                    but increased suffix. Will throw an error if
+                                    exceed                              [number]
+      --quiet                       Suppress logs                      [boolean]
+      --verbose                     Print verbose logs                 [boolean]
+      --no-color                    Logs without colors                [boolean]
 
 Examples:
     wsdl-tsclient file.wsdl -o ./generated/
@@ -89,3 +94,7 @@ for more information about the use of the client, read more about [soap](https:/
 ## License
 
 The source code is licensed under the [MIT](./LICENSE) license
+
+## Contributors
+
+![Contributors](https://contrib.rocks/image?repo=dderevjanik/wsdl-tsclient)

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2021-07-01
+
+- Project: Updated several npm packages
+- Parser: Fixed issue while finding name for sub-definition, which has same name as parent definition, fixes [#16](https://github.com/dderevjanik/wsdl-tsclient/issues/16)
+- Generator: Sanitize method, param and property names (e.g. names with `-`), fixes [#16](https://github.com/dderevjanik/wsdl-tsclient/issues/16) [#18](https://github.com/dderevjanik/wsdl-tsclient/issues/18)
+
+## [1.2.0] - 2021-06-26
+
+- CLI: Add option for `maxRecursiveDefinitionName`, default `64`
+- CLI: Add option for `caseInsensitiveNames`, default `false`
+- Parser: Warn user if recursive definition name exceed `32`
+- Parser: Option for `caseInsensitiveNames`, fix [#12](https://github.com/dderevjanik/wsdl-tsclient/pull/12) by @jakethagle
+- Generator: Fix incorrect case
+
 ## [1.1.4] - 2021-05-10
 
 - Parser: Fix `sourceName` for definitions
