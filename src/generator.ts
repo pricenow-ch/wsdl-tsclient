@@ -8,25 +8,34 @@ import {
     PropertySignatureStructure,
     StructureKind,
 } from "ts-morph";
+import { ModelPropertyNaming } from ".";
 import { Definition, Method, ParsedWsdl } from "./models/parsed-wsdl";
 import { Logger } from "./utils/logger";
 
 export interface GeneratorOptions {
     emitDefinitionsOnly: boolean;
+    modelPropertyNaming: ModelPropertyNaming;
+    esm: boolean;
 }
 
 const defaultOptions: GeneratorOptions = {
-    emitDefinitionsOnly: false
+    emitDefinitionsOnly: false,
+    modelPropertyNaming: null,
+    esm: false,
 };
 
 /**
  * To avoid duplicated imports
  */
-function addSafeImport(imports: OptionalKind<ImportDeclarationStructure>[], moduleSpecifier: string, namedImport: string) {
-    if (!imports.find(imp => imp.moduleSpecifier == moduleSpecifier)) {
+function addSafeImport(
+    imports: OptionalKind<ImportDeclarationStructure>[],
+    moduleSpecifier: string,
+    namedImport: string
+) {
+    if (!imports.find((imp) => imp.moduleSpecifier == moduleSpecifier)) {
         imports.push({
-           moduleSpecifier,
-           namedImports: [{ name: namedImport }]
+            moduleSpecifier,
+            namedImports: [{ name: namedImport }],
         });
     }
 }
@@ -36,7 +45,7 @@ const incorrectPropNameChars = [" ", "-", "."];
  * This is temporally method to fix this issue https://github.com/dsherret/ts-morph/issues/1160
  */
 function sanitizePropName(propName: string) {
-    if (incorrectPropNameChars.some(char => propName.includes(char))) {
+    if (incorrectPropNameChars.some((char) => propName.includes(char))) {
         return `"${propName}"`;
     }
     return propName;
@@ -63,7 +72,8 @@ function generateDefinitionFile(
     definition: null | Definition,
     defDir: string,
     stack: string[],
-    generated: Definition[]
+    generated: Definition[],
+    options: GeneratorOptions
 ): void {
     const defName = definition.name;
     const defFilePath = path.join(defDir, `${defName}.ts`);
@@ -76,6 +86,16 @@ function generateDefinitionFile(
     const definitionImports: OptionalKind<ImportDeclarationStructure>[] = [];
     const definitionProperties: PropertySignatureStructure[] = [];
     for (const prop of definition.properties) {
+        if (options.modelPropertyNaming) {
+            switch (options.modelPropertyNaming) {
+                case ModelPropertyNaming.camelCase:
+                    prop.name = camelcase(prop.name);
+                    break;
+                case ModelPropertyNaming.PascalCase:
+                    prop.name = camelcase(prop.name, { pascalCase: true });
+                    break;
+            }
+        }
         if (prop.kind === "PRIMITIVE") {
             // e.g. string
             definitionProperties.push(createProperty(prop.name, prop.type, prop.description, prop.isArray));
@@ -83,9 +103,12 @@ function generateDefinitionFile(
             // e.g. Items
             if (!generated.includes(prop.ref)) {
                 // Wasn't generated yet
-                generateDefinitionFile(project, prop.ref, defDir, [...stack, prop.ref.name], generated);
+                generateDefinitionFile(project, prop.ref, defDir, [...stack, prop.ref.name], generated, options);
             }
-            addSafeImport(definitionImports, `./${prop.ref.name}`, prop.ref.name);
+            // If a property is of the same type as its parent type, don't add import
+            if (prop.ref.name !== definition.name) {
+                addSafeImport(definitionImports, `./${prop.ref.name}${options.esm ? ".js" : ""}`, prop.ref.name);
+            }
             definitionProperties.push(createProperty(prop.name, prop.ref.name, prop.sourceName, prop.isArray));
         }
     }
@@ -105,10 +128,14 @@ function generateDefinitionFile(
     defFile.saveSync();
 }
 
-export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: Partial<GeneratorOptions>): Promise<void> {
+export async function generate(
+    parsedWsdl: ParsedWsdl,
+    outDir: string,
+    options: Partial<GeneratorOptions>
+): Promise<void> {
     const mergedOptions: GeneratorOptions = {
         ...defaultOptions,
-        ...options
+        ...options,
     };
     const project = new Project();
 
@@ -147,11 +174,20 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
                             method.paramDefinition,
                             defDir,
                             [method.paramDefinition.name],
-                            allDefinitions
+                            allDefinitions,
+                            mergedOptions
                         );
-                        addSafeImport(clientImports, `./definitions/${method.paramDefinition.name}`, method.paramDefinition.name);
+                        addSafeImport(
+                            clientImports,
+                            `./definitions/${method.paramDefinition.name}${mergedOptions.esm ? ".js" : ""}`,
+                            method.paramDefinition.name
+                        );
                     }
-                    addSafeImport(portImports, `../definitions/${method.paramDefinition.name}`, method.paramDefinition.name);
+                    addSafeImport(
+                        portImports,
+                        `../definitions/${method.paramDefinition.name}${mergedOptions.esm ? ".js" : ""}`,
+                        method.paramDefinition.name
+                    );
                 }
                 if (method.returnDefinition !== null) {
                     if (!allDefinitions.includes(method.returnDefinition)) {
@@ -161,11 +197,20 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
                             method.returnDefinition,
                             defDir,
                             [method.returnDefinition.name],
-                            allDefinitions
+                            allDefinitions,
+                            mergedOptions
                         );
-                        addSafeImport(clientImports, `./definitions/${method.returnDefinition.name}`, method.returnDefinition.name);
+                        addSafeImport(
+                            clientImports,
+                            `./definitions/${method.returnDefinition.name}${mergedOptions.esm ? ".js" : ""}`,
+                            method.returnDefinition.name
+                        );
                     }
-                    addSafeImport(portImports, `../definitions/${method.returnDefinition.name}`, method.returnDefinition.name);
+                    addSafeImport(
+                        portImports,
+                        `../definitions/${method.returnDefinition.name}${mergedOptions.esm ? ".js" : ""}`,
+                        method.returnDefinition.name
+                    );
                 }
                 // TODO: Deduplicate PortMethods
                 allMethods.push(method);
@@ -187,7 +232,7 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
                 });
             } // End of PortMethod
             if (!mergedOptions.emitDefinitionsOnly) {
-                addSafeImport(serviceImports, `../ports/${port.name}`, port.name);
+                addSafeImport(serviceImports, `../ports/${port.name}${mergedOptions.esm ? ".js" : ""}`, port.name);
                 servicePorts.push({
                     name: sanitizePropName(port.name),
                     isReadonly: true,
@@ -209,7 +254,7 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
         } // End of Port
 
         if (!mergedOptions.emitDefinitionsOnly) {
-            addSafeImport(clientImports, `./services/${service.name}`, service.name);
+            addSafeImport(clientImports, `./services/${service.name}${mergedOptions.esm ? ".js" : ""}`, service.name);
             clientServices.push({ name: sanitizePropName(service.name), type: service.name });
 
             serviceFile.addImportDeclarations(serviceImports);
@@ -237,6 +282,7 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
             namedImports: [
                 { name: "Client", alias: "SoapClient" },
                 { name: "createClientAsync", alias: "soapCreateClientAsync" },
+                { name: "IExOptions", alias: "ISoapExOptions" },
             ],
         });
         clientFile.addImportDeclarations(clientImports);
@@ -250,14 +296,21 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
                 properties: clientServices,
                 extends: ["SoapClient"],
                 methods: allMethods.map<OptionalKind<MethodSignatureStructure>>((method) => ({
-                    name: sanitizePropName(`${(method.name)}Async`),
+                    name: sanitizePropName(`${method.name}Async`),
                     parameters: [
                         {
                             name: camelcase(method.paramName),
                             type: method.paramDefinition ? method.paramDefinition.name : "{}",
                         },
+                        {
+                            name: "options",
+                            type: "ISoapExOptions",
+                            hasQuestionToken: true,
+                        },
                     ],
-                    returnType: `Promise<[result: ${method.returnDefinition ? method.returnDefinition.name : "unknown"}, rawResponse: any, soapHeader: any, rawRequest: any]>`,
+                    returnType: `Promise<[result: ${
+                        method.returnDefinition ? method.returnDefinition.name : "unknown"
+                    }, rawResponse: any, soapHeader: any, rawRequest: any]>`,
                 })),
             },
         ]);
@@ -288,7 +341,7 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
     indexFile.addExportDeclarations(
         allDefinitions.map((def) => ({
             namedExports: [def.name],
-            moduleSpecifier: `./definitions/${def.name}`,
+            moduleSpecifier: `./definitions/${def.name}${mergedOptions.esm ? ".js" : ""}`,
         }))
     );
     if (!mergedOptions.emitDefinitionsOnly) {
@@ -297,19 +350,19 @@ export async function generate(parsedWsdl: ParsedWsdl, outDir: string, options: 
         indexFile.addExportDeclarations([
             {
                 namedExports: ["createClientAsync", `${parsedWsdl.name}Client`],
-                moduleSpecifier: "./client",
+                moduleSpecifier: `./client${mergedOptions.esm ? ".js" : ""}`,
             },
         ]);
         indexFile.addExportDeclarations(
             parsedWsdl.services.map((service) => ({
                 namedExports: [service.name],
-                moduleSpecifier: `./services/${service.name}`,
+                moduleSpecifier: `./services/${service.name}${mergedOptions.esm ? ".js" : ""}`,
             }))
         );
         indexFile.addExportDeclarations(
             parsedWsdl.ports.map((port) => ({
                 namedExports: [port.name],
-                moduleSpecifier: `./ports/${port.name}`,
+                moduleSpecifier: `./ports/${port.name}${mergedOptions.esm ? ".js" : ""}`,
             }))
         );
     }
